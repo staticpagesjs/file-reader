@@ -30,7 +30,7 @@ const iterable = reader({
 ### __`reader(options: Options): Iterable<Data>`__
 
 #### `Options`
-- `options.cwd` (default: `process.cwd()`) sets the current working directory.
+- `options.cwd` (default: `pages`) sets the current working directory.
 - `options.pattern` (default: `**/*`) a glob pattern that marks the files to read.
 - `options.encoding` (default: `utf-8`) defines the returned file encoding. Possible values are the same as the `encoding` argument of `fs.readFile`.
 - `options.incremental` (default: `false`) return only those files that are newer than the last iteration of the files. Read more about incremental builds below.
