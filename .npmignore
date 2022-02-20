@@ -1,0 +1,6 @@
+/tsconfig.json
+/.eslintrc.cjs
+/src/
+/tests/
+*.tgz
+*.log
