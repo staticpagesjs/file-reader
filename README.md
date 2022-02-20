@@ -6,7 +6,7 @@ Reads the contents of every file where the file name matches the given pattern. 
 import reader from '@static-pages/file-reader';
 
 const iterable = reader({
-  cwd: '.',
+  cwd: 'pages',
   pattern: '**/*',
   encoding: 'utf-8',
   incremental: false,
@@ -16,10 +16,10 @@ const iterable = reader({
 // {
 //   header: {
 //     cwd: '/path/to/pages',
-//     path: 'folder/file.yaml',
+//     path: 'folder/file.md',
 //     dirname: 'folder',
 //     basename: 'file',
-//     extname: '.yaml'
+//     extname: '.md'
 //   },
 //   body: '[file contents]'
 // }
