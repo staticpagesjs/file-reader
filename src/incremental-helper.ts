@@ -48,7 +48,7 @@ export class Incremental {
 		}
 
 		if (typeof options.strategy !== 'undefined') {
-			if (!Array.isArray(options.strategy)) {
+			if (typeof options.strategy !== 'string') {
 				throw new TypeError(`Incremental build 'strategy' type mismatch, expected 'string', got '${typeof options.strategy}'.`);
 			} else if (!['git', 'time'].includes(options.strategy)) {
 				throw new TypeError(`Unknown incremental build strategy '${options.strategy}'.`);
