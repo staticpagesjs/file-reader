@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import glob from 'fast-glob';
-import { Incremental, Options as IncrementalOptions } from './incremental-helper.js';
+import { Incremental, Options as IncrementalOptions } from './incremental.js';
 
 export interface Options {
 	cwd?: string;
