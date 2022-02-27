@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import path from 'path';
 import * as childProcess from 'child_process';
 import glob from 'fast-glob';
 import micromatch from 'micromatch';
@@ -110,16 +111,16 @@ export class IncrementalHelper {
 
 		const micromatchOptions: micromatch.Options = {
 			nocase: true,
-			cwd: this.triggersCwd,
+			windows: true,
 		};
 
 		const globOptions: glob.Options = {
 			absolute: true,
-			cwd: micromatchOptions.cwd,
-			caseSensitiveMatch: !micromatchOptions.nocase,
+			cwd: this.triggersCwd,
+			caseSensitiveMatch: false,
 		};
 
-		if (this.strategy === 'time') {
+		if (this.strategy === 'time') { // Handle TIME strategy
 			if (statusData[this.key]) {
 				const lastBuildTime = new Date(statusData[this.key]);
 
@@ -136,22 +137,40 @@ export class IncrementalHelper {
 
 				// handle when a change activates some of the files
 				const triggered = new Set<string>();
+				const patternCache = new Set<string>();
 				const mtimeCache: Record<string, Date> = {};
 				for (const [source, targets] of Object.entries(triggerSome)) {
+					// get files that match the source pattern
 					for (const file of glob.sync(source, globOptions)) {
 						if (!mtimeCache[file]) {
 							mtimeCache[file] = fs.statSync(file).mtime;
 						}
+						// if the file is new/modified
 						if (lastBuildTime < mtimeCache[file]) {
-							for (const targetFile of micromatch(files, targets, micromatchOptions)) {
-								triggered.add(targetFile);
+							// prepare the target pattern
+							const normalizedTargets = targets
+								.filter(x => !patternCache.has(x)) // if we seen this target pattern already
+								.map(x => path
+									.join(this.triggersCwd, x)
+									.replace(/\\/g, '/')
+								);
+							// if there is a not yet seen target pattern
+							if (normalizedTargets.length > 0) {
+								// filter matching files to it
+								for (const targetFile of micromatch(files, normalizedTargets, micromatchOptions)) {
+									triggered.add(targetFile);
+								}
+								// cache already seen target patterns
+								for (const target of targets) {
+									patternCache.add(target);
+								}
 							}
 						}
 					}
 				}
 				return files.filter(x => lastBuildTime < fs.statSync(x).mtime || triggered.has(x));
 			}
-		} else if (this.strategy === 'git') {
+		} else if (this.strategy === 'git') { // Handle GIT strategy
 			const commitHash = statusData[this.key];
 			if (commitHash) {
 				const gitBaseDir = getGitBaseDir();
@@ -175,6 +194,8 @@ export class IncrementalHelper {
 				return files.filter(x => changesSet.has(x) || triggered.has(x));
 			}
 		}
+
+		// if a strategy did not return its filtered result we return the whole input unfiltered
 		return files;
 	}
 
@@ -186,8 +207,10 @@ export class IncrementalHelper {
 		const data = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf-8')) : {};
 
 		if (this.strategy === 'time') {
+			// time strategy saves an UTC date
 			data[this.key] = this.startedAt.toJSON();
 		} else if (this.strategy === 'git') {
+			// git strategy saves a git commit hash
 			data[this.key] = getGitCommitHash();
 		}
 

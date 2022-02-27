@@ -32,7 +32,7 @@ export interface Data {
 
 export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', incremental = false }: Options = {}) => ({
 	[Symbol.iterator]() {
-		const absCwd = path.resolve(process.cwd(), cwd);
+		const absCwd = path.resolve(process.cwd(), cwd).replace(/\\/g, '/');
 		let files = glob.sync(pattern, {
 			cwd: absCwd,
 			absolute: true,
@@ -44,7 +44,7 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 			incrementalHelper = new IncrementalHelper({
 				key: path.posix.join(cwd, Array.isArray(pattern) ? pattern.join('|') : pattern),
 				...<object>incremental,
-				triggersCwd: cwd,
+				triggersCwd: absCwd,
 			});
 			files = incrementalHelper.filter(files);
 		}
