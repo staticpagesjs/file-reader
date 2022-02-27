@@ -92,6 +92,8 @@ export class IncrementalHelper {
 	filter(files: string[]): string[] {
 		const statusData = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf-8')) : {};
 
+		const addCwd = (x: string) => path.join(this.triggersCwd, x).replace(/\\/g, '/');
+
 		// eliminate duplicate trigger sources
 		// these activates part of the 'files' array with a given pattern
 		const triggerSome: Record<string, string[]> = {};
@@ -99,19 +101,19 @@ export class IncrementalHelper {
 		const triggerAll = new Set<string>();
 		for (const trigger of this.triggers) {
 			if (Array.isArray(trigger)) {
-				const source = trigger[0];
+				const source = addCwd(trigger[0]);
 				if (!triggerSome[source]) {
 					triggerSome[source] = [];
 				}
-				triggerSome[source].push(trigger[1]);
+				triggerSome[source].push(addCwd(trigger[1]));
 			} else {
-				triggerAll.add(trigger);
+				triggerAll.add(addCwd(trigger));
 			}
 		}
 
 		const micromatchOptions: micromatch.Options = {
 			nocase: true,
-			windows: true,
+			windows: true, // 'files' can have windows style paths too
 		};
 
 		const globOptions: glob.Options = {
@@ -139,29 +141,24 @@ export class IncrementalHelper {
 				const triggered = new Set<string>();
 				const patternCache = new Set<string>();
 				const mtimeCache: Record<string, Date> = {};
-				for (const [source, targets] of Object.entries(triggerSome)) {
+				for (const [sourcePattern, targetPatterns] of Object.entries(triggerSome)) {
 					// get files that match the source pattern
-					for (const file of glob.sync(source, globOptions)) {
+					for (const file of glob.sync(sourcePattern, globOptions)) {
 						if (!mtimeCache[file]) {
 							mtimeCache[file] = fs.statSync(file).mtime;
 						}
 						// if the file is new/modified
 						if (lastBuildTime < mtimeCache[file]) {
-							// prepare the target pattern
-							const normalizedTargets = targets
-								.filter(x => !patternCache.has(x)) // if we seen this target pattern already
-								.map(x => path
-									.join(this.triggersCwd, x)
-									.replace(/\\/g, '/')
-								);
-							// if there is a not yet seen target pattern
-							if (normalizedTargets.length > 0) {
+							// drop patterns that we seen earlier
+							const unvisitedTargetPatterns = targetPatterns.filter(x => !patternCache.has(x));
+							// if there is atleast one not yet seen pattern
+							if (unvisitedTargetPatterns.length > 0) {
 								// filter matching files to it
-								for (const targetFile of micromatch(files, normalizedTargets, micromatchOptions)) {
+								for (const targetFile of micromatch(files, unvisitedTargetPatterns, micromatchOptions)) {
 									triggered.add(targetFile);
 								}
-								// cache already seen target patterns
-								for (const target of targets) {
+								// add it to seen patterns list
+								for (const target of targetPatterns) {
 									patternCache.add(target);
 								}
 							}
