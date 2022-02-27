@@ -1,13 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import glob from 'fast-glob';
-import { Incremental, Options as IncrementalOptions } from './incremental.js';
+import { IncrementalHelper, IncrementalOptions } from './incremental-helper.js';
 
 export interface Options {
 	cwd?: string;
 	pattern?: string;
 	encoding?: BufferEncoding;
-	incremental?: boolean | Partial<IncrementalOptions>;
+	incremental?: boolean | Pick<Partial<IncrementalOptions>, 'file' | 'key' | 'strategy' | 'triggers'>;
 }
 
 /**
@@ -16,7 +16,7 @@ export interface Options {
  * `header.path`: `pages/about/company.md`\
  * `header.dirname`: `pages/about`\
  * `header.basename`: `company`\
- * `header.extname`: `md`\
+ * `header.extname`: `.md`\
  * `body`: `[file contents]`
  */
 export interface Data {
@@ -39,11 +39,12 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 			caseSensitiveMatch: false,
 		});
 
-		let incrementalHelper: Incremental;
+		let incrementalHelper: IncrementalHelper;
 		if (incremental) {
-			incrementalHelper = new Incremental({
+			incrementalHelper = new IncrementalHelper({
 				key: path.posix.join(cwd, pattern),
 				...<object>incremental,
+				triggersCwd: cwd,
 			});
 			files = incrementalHelper.filter(files);
 		}
@@ -52,7 +53,7 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 			next() {
 				const file = files.pop();
 				if (!file) { // no more input
-					incrementalHelper?.finalize();
+					incrementalHelper?.close();
 					return { done: true };
 				}
 
