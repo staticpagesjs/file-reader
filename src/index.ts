@@ -5,7 +5,7 @@ import { IncrementalHelper, IncrementalOptions } from './incremental-helper.js';
 
 export interface Options {
 	cwd?: string;
-	pattern?: string;
+	pattern?: string | string[];
 	encoding?: BufferEncoding;
 	incremental?: boolean | Pick<Partial<IncrementalOptions>, 'file' | 'key' | 'strategy' | 'triggers'>;
 }
@@ -42,7 +42,7 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 		let incrementalHelper: IncrementalHelper;
 		if (incremental) {
 			incrementalHelper = new IncrementalHelper({
-				key: path.posix.join(cwd, pattern),
+				key: path.posix.join(cwd, Array.isArray(pattern) ? pattern.join('|') : pattern),
 				...<object>incremental,
 				triggersCwd: cwd,
 			});
