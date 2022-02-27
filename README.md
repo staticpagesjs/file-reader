@@ -56,5 +56,18 @@ Last build state is preserved in a `.incremental` file in the current working di
 
 If there are multiple file readers having the same `cwd` and `pattern` they can collide with each. This is beacause the current state of an incremental build is cached with a key generated from the `cwd` and `pattern`. Set `incremental: { key: 'my-unique-key' }` for each of the readers to fix this.
 
+You can define file relations eg. "if 'A' is updated 'B' also needs to be included in the build" OR "if 'A' is updated, incremental build mode should be turned off".
+These rules can be defined in `incremental: { triggers: [...] }`. The `triggers` accepts `([string, string] | string)[]` type. The `[string, string]` is the previously said 'A','B' form, the `string` is the latter where incremental build is ignored (triggers all the files).
+
+#### Options of `incremental`
+```ts
+interface IncrementalOptions {
+  strategy?: 'git' | 'time';
+  file?: string;
+  key?: string;
+  triggers?: ([string, string] | string)[];
+}
+```
+
 ## Where to use this?
 This module can be used to generate static HTML pages from file based sources. Read more at the [Static Pages JS project page](https://staticpagesjs.github.io/).
