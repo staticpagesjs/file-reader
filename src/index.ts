@@ -75,4 +75,4 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 			}
 		};
 	}
-});
+} as Iterable<Data>);
