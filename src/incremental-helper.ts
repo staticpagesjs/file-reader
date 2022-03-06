@@ -87,7 +87,7 @@ export class IncrementalHelper {
 	}
 
 	/**
-	 * Filters out files that are not changed since last build based on the given strategy.
+	 * Filters files that are changed since last build
 	 */
 	filter(files: string[]): string[] {
 		const statusData = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf-8')) : {};
@@ -197,8 +197,7 @@ export class IncrementalHelper {
 	}
 
 	/**
-	 * Calling .close() will write the last build time to the `.incremental` file.
-	 * The time of the creation of this class is preserved in the file.
+	 * Calling .close() will update the `.incremental` file
 	 */
 	close(): void {
 		const data = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf-8')) : {};
