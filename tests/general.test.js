@@ -70,3 +70,52 @@ test('incremental key can be customized', async () => {
 	const incrementalData = JSON.parse(fs.readFileSync('tests/.incremental', 'utf-8'));
 	expect(Object.keys(incrementalData)).toStrictEqual(['my-key']);
 });
+
+test('it should use incremental with git strategy', async () => {
+	const expected = ['file2'];
+
+	// prepare an incremental file in place
+	fs.writeFileSync('tests/.incremental', JSON.stringify({
+		'test': '391010629523c2a1dfa1bb95badc6f30947da39b',
+	}));
+
+	const output = [...reader({
+		cwd: 'tests/input',
+		pattern: '**/file*.txt',
+		encoding: 'utf-8',
+		incremental: {
+			strategy: 'git',
+			file: 'tests/.incremental',
+			key: 'test',
+		},
+	})].map(x => x.body.trim());
+
+	output.sort((a, b) => a.localeCompare(b));
+	expect(output).toStrictEqual(expected);
+});
+
+test('it should use triggers', async () => {
+	const expected = ['file2', 'file3'];
+
+	// prepare an incremental file in place
+	fs.writeFileSync('tests/.incremental', JSON.stringify({
+		'test': '391010629523c2a1dfa1bb95badc6f30947da39b',
+	}));
+
+	const output = [...reader({
+		cwd: 'tests/input',
+		pattern: '**/file*.txt',
+		encoding: 'utf-8',
+		incremental: {
+			strategy: 'git',
+			file: 'tests/.incremental',
+			key: 'test',
+			triggers: [
+				['**/*2*', '**/*3*']
+			]
+		},
+	})].map(x => x.body.trim());
+
+	output.sort((a, b) => a.localeCompare(b));
+	expect(output).toStrictEqual(expected);
+});
