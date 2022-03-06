@@ -42,7 +42,7 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 		let incrementalHelper: IncrementalHelper;
 		if (incremental) {
 			incrementalHelper = new IncrementalHelper({
-				key: path.posix.join(cwd, Array.isArray(pattern) ? pattern.join('|') : pattern),
+				key: [cwd, ...(Array.isArray(pattern) ? pattern : [pattern])].join(':'),
 				...<object>incremental,
 				triggersCwd: absCwd,
 			});
@@ -51,7 +51,7 @@ export default ({ cwd = 'pages', pattern = '**/*', encoding = 'utf-8', increment
 
 		return {
 			next() {
-				const file = files.pop();
+				const file = files.shift();
 				if (!file) { // no more input
 					incrementalHelper?.close();
 					return { done: true };
