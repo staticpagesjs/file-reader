@@ -71,7 +71,7 @@ test('incremental key can be customized', async () => {
 	expect(Object.keys(incrementalData)).toStrictEqual(['my-key']);
 });
 
-test('it should use incremental with git strategy', async () => {
+test('it should use incremental with "git" strategy', async () => {
 	const expected = ['file2'];
 
 	// prepare an incremental file in place
@@ -94,7 +94,7 @@ test('it should use incremental with git strategy', async () => {
 	expect(output).toStrictEqual(expected);
 });
 
-test('it should use triggers', async () => {
+test('it should use incremental with "git" strategy + triggers', async () => {
 	const expected = ['file2', 'file3'];
 
 	// prepare an incremental file in place
@@ -108,6 +108,67 @@ test('it should use triggers', async () => {
 		encoding: 'utf-8',
 		incremental: {
 			strategy: 'git',
+			file: 'tests/.incremental',
+			key: 'test',
+			triggers: [
+				['**/*2*', '**/*3*']
+			]
+		},
+	})].map(x => x.body.trim());
+
+	output.sort((a, b) => a.localeCompare(b));
+	expect(output).toStrictEqual(expected);
+});
+
+test('it should use incremental with "time" strategy', async () => {
+	const expected = ['file2'];
+
+	const then = new Date();
+	then.setMinutes(then.getMinutes() - 1);
+
+	// set file2 mtime to NOW
+	fs.utimesSync('tests/input/file2.txt', new Date(), new Date());
+
+	// prepare an incremental file in place
+	fs.writeFileSync('tests/.incremental', JSON.stringify({
+		'test': then,
+	}));
+
+	const output = [...reader({
+		cwd: 'tests/input',
+		pattern: '**/file*.txt',
+		encoding: 'utf-8',
+		incremental: {
+			strategy: 'time',
+			file: 'tests/.incremental',
+			key: 'test',
+		},
+	})].map(x => x.body.trim());
+
+	output.sort((a, b) => a.localeCompare(b));
+	expect(output).toStrictEqual(expected);
+});
+
+test('it should use incremental with "time" strategy + triggers', async () => {
+	const expected = ['file2', 'file3'];
+
+	const then = new Date();
+	then.setMinutes(then.getMinutes() - 1);
+
+	// set file2 mtime to NOW
+	fs.utimesSync('tests/input/file2.txt', new Date(), new Date());
+
+	// prepare an incremental file in place
+	fs.writeFileSync('tests/.incremental', JSON.stringify({
+		'test': then,
+	}));
+
+	const output = [...reader({
+		cwd: 'tests/input',
+		pattern: '**/file*.txt',
+		encoding: 'utf-8',
+		incremental: {
+			strategy: 'time',
 			file: 'tests/.incremental',
 			key: 'test',
 			triggers: [
