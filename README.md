@@ -6,7 +6,7 @@ Reads the contents of every file where the file name matches the given pattern. 
 import reader from '@static-pages/file-reader';
 
 const iterable = reader({
-  cwd: 'pages',
+  cwd: '.',
   pattern: '**/*',
   encoding: 'utf-8',
   incremental: false,
@@ -30,10 +30,10 @@ const iterable = reader({
 ### __`reader(options: Options): Iterable<Data>`__
 
 #### `Options`
-- `options.cwd` (default: `pages`) sets the current working directory.
-- `options.pattern` (default: `**/*`) a glob pattern that marks the files to read.
+- `options.cwd` (default: `process.cwd()`) sets the current working directory.
+- `options.pattern` (default: `**/*`) a glob pattern that marks the files to read. Can be an array of patterns.
 - `options.encoding` (default: `utf-8`) defines the returned file encoding. Possible values are the same as the `encoding` argument of `fs.readFile`.
-- `options.incremental` (default: `false`) return only those files that are newer than the last iteration of the files. Read more about incremental builds below.
+- `options.incremental` (default: `false`) return only those files that are newer than the previous iteration. Read more about incremental builds below.
 
 #### `Data`
 - `data.header` contains metadata about the file.
@@ -50,14 +50,16 @@ It means that if a file content is already read and processed it will not be rea
 Set the `incremental` option to `true` or pass an object containing specific options to enable incremental builds.
 
 Modifications detected either by file `mtime` field or by `git diff --name-only <current-hash>..HEAD` (defaults to file modification time).
-To change this set `incremental: { strategy: 'git' }`.
+To change this to the git version, set `incremental: { strategy: 'git' }`.
 
 Last build state is preserved in a `.incremental` file in the current working directory. You can redirect the output to a different file by setting the `incremental: { file: 'buildstate.json' }` option.
 
 If there are multiple file readers having the same `cwd` and `pattern` they can collide with each. This is beacause the current state of an incremental build is cached with a key generated from the `cwd` and `pattern`. Set `incremental: { key: 'my-unique-key' }` for each of the readers to fix this.
 
-You can define file relations eg. "if 'A' is updated 'B' also needs to be included in the build" OR "if 'A' is updated, incremental build mode should be turned off".
-These rules can be defined in `incremental: { triggers: [...] }`. The `triggers` accepts `([string, string] | string)[]` type. The `[string, string]` is the previously said 'A','B' form, the `string` is the latter where incremental build is ignored (triggers all the files).
+You can define file relations eg. "if 'A' is modified 'B' needs to be included in the build" OR "if 'A' is modified, incremental build mode should be turned off".
+These rules can be defined in `incremental: { triggers: [...] }`. The `triggers` accepts `([string, string] | string)[]` type. The `[string, string]` is the previously said 'A','B' form, the `string` is the latter where incremental build is turned off (triggers all the files).
+
+> Tip: Add `.incremental` rule to your `.gitignore` file!
 
 #### Options of `incremental`
 ```ts
