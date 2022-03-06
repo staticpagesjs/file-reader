@@ -30,7 +30,7 @@ export interface Data {
 	body: string;
 }
 
-export default ({ cwd = process.cwd(), pattern = '**/*', encoding = 'utf-8', incremental = false }: Options = {}) => ({
+export default ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', incremental = false }: Options = {}) => ({
 	[Symbol.iterator]() {
 		const absCwd = path.resolve(cwd).replace(/\\/g, '/');
 		let files = glob.sync(pattern, {
