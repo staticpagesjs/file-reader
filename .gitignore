@@ -3,5 +3,6 @@ node_modules
 !/cjs/package.json
 /esm/
 /coverage/
+.incremental
 *.log
 *.tgz

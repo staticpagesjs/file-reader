@@ -25,11 +25,6 @@ const getGitChangesSince = (commitHash: string) => {
 };
 
 export class IncrementalHelper {
-	private static readonly defaultOptions = {
-		strategy: 'time',
-		file: '.incremental',
-	} as const;
-
 	private file: IncrementalOptions['file'];
 	private key: IncrementalOptions['key'];
 	private strategy: IncrementalOptions['strategy'];
@@ -80,8 +75,8 @@ export class IncrementalHelper {
 		}
 
 		this.key = options.key;
-		this.file = options.file ?? IncrementalHelper.defaultOptions.file;
-		this.strategy = options.strategy ?? IncrementalHelper.defaultOptions.strategy;
+		this.file = options.file ?? '.incremental';
+		this.strategy = options.strategy ?? 'time';
 		this.triggers = options.triggers ?? [];
 		this.triggersCwd = options.triggersCwd ?? process.cwd();
 	}
