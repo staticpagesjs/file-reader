@@ -4,13 +4,13 @@ import * as childProcess from 'child_process';
 import glob from 'fast-glob';
 import micromatch from 'micromatch';
 
-export interface IncrementalOptions {
+export type IncrementalHelperOptions = {
 	key: string;
 	file?: string;
 	strategy?: 'git' | 'time';
 	triggers?: ([string, string] | string)[];
 	triggersCwd?: string;
-}
+};
 
 const git = (...args: string[]) => childProcess.spawnSync('git', args).stdout.toString().trim();
 
@@ -25,17 +25,17 @@ const getGitChangesSince = (commitHash: string) => {
 };
 
 export class IncrementalHelper {
-	private file: IncrementalOptions['file'];
-	private key: IncrementalOptions['key'];
-	private strategy: IncrementalOptions['strategy'];
-	private triggers: IncrementalOptions['triggers'];
-	private triggersCwd: IncrementalOptions['triggersCwd'];
+	private file: IncrementalHelperOptions['file'];
+	private key: IncrementalHelperOptions['key'];
+	private strategy: IncrementalHelperOptions['strategy'];
+	private triggers: IncrementalHelperOptions['triggers'];
+	private triggersCwd: IncrementalHelperOptions['triggersCwd'];
 	private readonly startedAt = new Date();
 
 	/**
 	 * Creates an incremental build helper object
 	 */
-	constructor(options: IncrementalOptions) {
+	constructor(options: IncrementalHelperOptions) {
 		if (!options) {
 			throw new TypeError('Incremental helper constructor expects an options object.');
 		}

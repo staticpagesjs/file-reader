@@ -1,14 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import glob from 'fast-glob';
-import { IncrementalHelper, IncrementalOptions } from './incremental-helper.js';
+import { IncrementalHelper, IncrementalHelperOptions } from './incremental-helper.js';
 
-export interface Options {
+export type FileReaderOptions = {
 	cwd?: string;
 	pattern?: string | string[];
 	encoding?: BufferEncoding;
-	incremental?: boolean | Pick<Partial<IncrementalOptions>, 'file' | 'key' | 'strategy' | 'triggers'>;
-}
+	incremental?: boolean | Pick<Partial<IncrementalHelperOptions>, 'file' | 'key' | 'strategy' | 'triggers'>;
+};
 
 /**
  * Example: `/project/pages/about/company.md`\
@@ -19,7 +19,7 @@ export interface Options {
  * `header.extname`: `.md`\
  * `body`: `[file contents]`
  */
-export interface Data {
+export interface FileReaderData {
 	header: {
 		cwd: string;
 		path: string;
@@ -30,7 +30,7 @@ export interface Data {
 	body: string;
 }
 
-export default ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', incremental = false }: Options = {}) => ({
+export const fileReader = ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', incremental = false }: FileReaderOptions = {}) => ({
 	[Symbol.iterator]() {
 		const absCwd = path.resolve(cwd).replace(/\\/g, '/');
 		let files = glob.sync(pattern, {
@@ -75,4 +75,6 @@ export default ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', incremental =
 			}
 		};
 	}
-} as Iterable<Data>);
+} as Iterable<FileReaderData>);
+
+export default fileReader;
