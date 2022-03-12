@@ -19,7 +19,7 @@ export type FileReaderOptions = {
  * `header.extname`: `.md`\
  * `body`: `[file contents]`
  */
-export interface FileReaderData {
+export type FileReaderData = {
 	header: {
 		cwd: string;
 		path: string;
@@ -28,7 +28,7 @@ export interface FileReaderData {
 		extname: string;
 	};
 	body: string;
-}
+};
 
 export const fileReader = ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', incremental = false }: FileReaderOptions = {}) => ({
 	[Symbol.iterator]() {
