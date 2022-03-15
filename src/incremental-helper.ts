@@ -12,7 +12,7 @@ export type IncrementalHelperOptions = {
 	triggersCwd?: string;
 };
 
-const git = (...args: string[]) => childProcess.spawnSync('git', args).stdout.toString().trim();
+const git = (...args: string[]) => childProcess.spawnSync('git', args)?.stdout?.toString?.().trim() ?? '';
 
 const getGitBaseDir = () => git('rev-parse', '--show-toplevel');
 const getGitCommitHash = () => git('rev-parse', 'HEAD');
