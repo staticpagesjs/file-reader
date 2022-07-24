@@ -1,6 +1,6 @@
 {
   "name": "@static-pages/file-reader",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Generic file reader implementation for @static-pages/core.",
   "type": "module",
   "main": "cjs/index.js",
