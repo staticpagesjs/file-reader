@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import path from 'path';
+import * as path from 'path';
 import * as childProcess from 'child_process';
 import glob from 'fast-glob';
 import micromatch from 'micromatch';
@@ -25,11 +25,11 @@ const getGitChangesSince = (commitHash: string) => {
 };
 
 export class IncrementalHelper {
-	private file: IncrementalHelperOptions['file'];
-	private key: IncrementalHelperOptions['key'];
-	private strategy: IncrementalHelperOptions['strategy'];
-	private triggers: IncrementalHelperOptions['triggers'];
-	private triggersCwd: IncrementalHelperOptions['triggersCwd'];
+	private file: string;
+	private key: string;
+	private strategy: 'git' | 'time';
+	private triggers: ([string, string] | string)[];
+	private triggersCwd: string;
 	private readonly startedAt = new Date();
 
 	/**

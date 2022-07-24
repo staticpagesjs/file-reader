@@ -1,7 +1,7 @@
 /tsconfig.json
+/tsconfig.cjs.json
 /.eslintrc.cjs
-/src/
 /tests/
-.incremental
-*.tgz
+/src/
 *.log
+*.tgz

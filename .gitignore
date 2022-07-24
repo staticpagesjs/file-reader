@@ -1,8 +1,5 @@
-node_modules
-/cjs/*
-!/cjs/package.json
+/node_modules/
 /esm/
-/coverage/
-.incremental
+/cjs/
 *.log
 *.tgz

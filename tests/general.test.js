@@ -1,5 +1,5 @@
-const reader = require('../cjs/index').default;
-const fs = require('fs');
+import reader from '../esm/index.js';
+import * as fs from 'fs';
 
 afterEach(() => {
 	if (fs.existsSync('tests/.incremental')) {
