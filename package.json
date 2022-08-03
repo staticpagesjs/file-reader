@@ -19,7 +19,7 @@
     "watch:esm": "tsc --watch",
     "build:cjs": "tsc --project tsconfig.cjs.json && echo { \"type\": \"commonjs\" }>cjs/package.json",
     "watch:cjs": "npm run build:cjs && tsc --project tsconfig.cjs.json --watch",
-    "test": "eslint src && npm run build && cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "eslint src && npm run build && cross-env NODE_OPTIONS=--experimental-vm-modules jest --run-in-band",
     "clean": "rimraf esm cjs"
   },
   "repository": {

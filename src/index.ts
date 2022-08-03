@@ -1,13 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import glob from 'fast-glob';
-import { IncrementalHelper, IncrementalHelperOptions } from './incremental-helper.js';
+import { IncrementalHelper } from './incremental-helper.js';
 
 export type FileReaderOptions = {
 	cwd?: string;
 	pattern?: string | string[];
+	ignore?: string | string[];
 	encoding?: BufferEncoding;
-	incremental?: boolean | Pick<Partial<IncrementalHelperOptions>, 'file' | 'key' | 'strategy' | 'triggers'>;
+	incremental?: boolean | Omit<Partial<ConstructorParameters<typeof IncrementalHelper>[0]>, 'cwd'>;
 };
 
 /**
@@ -30,12 +31,12 @@ export type FileReaderData = {
 	body: string;
 };
 
-export const fileReader = ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', incremental = false }: FileReaderOptions = {}) => ({
+export const fileReader = ({ cwd = '.', pattern = '**', encoding = 'utf-8', incremental = false, ignore }: FileReaderOptions = {}) => ({
 	[Symbol.iterator]() {
-		const absCwd = path.resolve(cwd).replace(/\\/g, '/');
 		let files = glob.sync(pattern, {
-			cwd: absCwd,
-			absolute: true,
+			cwd: cwd,
+			absolute: false,
+			...(ignore && { ignore: Array.isArray(ignore) ? ignore : [ignore] }),
 			caseSensitiveMatch: false,
 		});
 
@@ -43,12 +44,13 @@ export const fileReader = ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', in
 		if (incremental) {
 			incrementalHelper = new IncrementalHelper({
 				key: [cwd, ...(Array.isArray(pattern) ? pattern : [pattern])].join(':'),
-				...<object>incremental,
-				triggersCwd: absCwd,
+				...incremental as object,
+				cwd: cwd,
 			});
 			files = incrementalHelper.filter(files);
 		}
 
+		const resolvedCwd = path.resolve(cwd).replace(/\\/g, '/');
 		return {
 			next() {
 				const file = files.shift();
@@ -57,18 +59,17 @@ export const fileReader = ({ cwd = '.', pattern = '**/*', encoding = 'utf-8', in
 					return { done: true };
 				}
 
-				const relativePath = path.relative(absCwd, file);
 				const extName = path.extname(file);
 
 				const data = {
 					header: {
-						cwd: absCwd,
-						path: relativePath,
-						dirname: path.dirname(relativePath),
-						basename: path.basename(relativePath, extName),
+						cwd: resolvedCwd,
+						path: file,
+						dirname: path.dirname(file),
+						basename: path.basename(file, extName),
 						extname: extName
 					},
-					body: fs.readFileSync(file, encoding),
+					body: fs.readFileSync(path.join(resolvedCwd, file), encoding),
 				};
 
 				return { value: data };

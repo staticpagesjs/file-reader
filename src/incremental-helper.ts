@@ -1,16 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as childProcess from 'child_process';
-import glob from 'fast-glob';
 import micromatch from 'micromatch';
 
-export type IncrementalHelperOptions = {
-	key: string;
-	file?: string;
-	strategy?: 'git' | 'time';
-	triggers?: ([string, string] | string)[];
-	triggersCwd?: string;
+const micromatchOptions: micromatch.Options = {
+	nocase: true,
+	windows: true,
 };
+
+const normalizePath = (str: string) => path.resolve(str).replace(/\\/g, '/').replace(/[\\/]+$/, '');
 
 const git = (...args: string[]) => childProcess.spawnSync('git', args)?.stdout?.toString?.().trim() ?? '';
 
@@ -24,61 +22,109 @@ const getGitChangesSince = (commitHash: string) => {
 	return changes.split(/\r?\n/);
 };
 
+const readdir = (dir: string) => {
+	const files: string[] = [];
+	const readdir = (dir: string, prefix = '') => {
+		for (const dirent of fs.readdirSync(dir, { withFileTypes: true })) {
+			if (dirent.isDirectory()) {
+				readdir(dir + '/' + dirent.name, prefix + dirent.name + '/');
+			} else {
+				files.push(prefix + dirent.name);
+			}
+		}
+	};
+	readdir(dir.replace(/[\\/]+$/, ''));
+	return files;
+};
+
+const triggersArrayHandler = (triggersArray: [string, string][]) => (changes: string[]) => {
+	const triggered = new Set<string>();
+	for (const [source, target] of triggersArray) {
+		if (micromatch.some(changes, source, micromatchOptions)) {
+			triggered.add(target);
+		}
+	}
+	return [...triggered];
+};
+
 export class IncrementalHelper {
 	private file: string;
 	private key: string;
+	private cwd: string;
 	private strategy: 'git' | 'time';
-	private triggers: ([string, string] | string)[];
-	private triggersCwd: string;
+	private triggers?: [string, string][] | ((changes: string[]) => string[]);
+	private triggersTrackingRoot: string;
 	private readonly startedAt = new Date();
+	private readonly gitBaseDir: string = '.';
 
 	/**
-	 * Creates an incremental build helper object
+	 * Creates an incremental reader helper object
 	 */
-	constructor(options: IncrementalHelperOptions) {
-		if (!options) {
-			throw new TypeError('Incremental helper constructor expects an options object.');
+	constructor({
+		file = '.incremental',
+		key,
+		cwd,
+		strategy = 'time',
+		triggers,
+		triggersTrackingRoot,
+	}: {
+		file?: IncrementalHelper['file'];
+		key: IncrementalHelper['key'];
+		cwd: IncrementalHelper['cwd'];
+		strategy?: IncrementalHelper['strategy'];
+		triggers?: IncrementalHelper['triggers'];
+		triggersTrackingRoot?: IncrementalHelper['triggersTrackingRoot'];
+	}) {
+		if (typeof file !== 'undefined' && typeof file !== 'string') {
+			throw new TypeError(`Incremental reader: 'file' type mismatch, expected 'string', got '${typeof strategy}'.`);
 		}
 
-		if (typeof options.key !== 'string') {
-			throw new TypeError(`Incremental build 'key' type mismatch, expected 'string', got '${typeof options.key}'.`);
+		if (typeof key !== 'string') {
+			throw new TypeError(`Incremental reader: 'key' type mismatch, expected 'string', got '${typeof key}'.`);
 		}
 
-		if (typeof options.file !== 'undefined' && typeof options.file !== 'string') {
-			throw new TypeError(`Incremental build 'file' type mismatch, expected 'string', got '${typeof options.strategy}'.`);
+		if (typeof cwd !== 'string') {
+			throw new TypeError(`Incremental reader: 'cwd' type mismatch, expected 'string', got '${typeof cwd}'.`);
 		}
 
-		if (typeof options.strategy !== 'undefined') {
-			if (typeof options.strategy !== 'string') {
-				throw new TypeError(`Incremental build 'strategy' type mismatch, expected 'string', got '${typeof options.strategy}'.`);
-			} else if (!['git', 'time'].includes(options.strategy)) {
-				throw new TypeError(`Unknown incremental build strategy '${options.strategy}'.`);
+		if (typeof strategy !== 'undefined') {
+			if (typeof strategy !== 'string') {
+				throw new TypeError(`Incremental reader: 'strategy' type mismatch, expected 'string', got '${typeof strategy}'.`);
+			} else if (!['git', 'time'].includes(strategy)) {
+				throw new TypeError(`Unknown incremental reader strategy '${strategy}'.`);
 			}
 
 			// Test if git works properly in this repository.
 			if (!git().startsWith('usage:')) {
-				throw new Error('Incremental build: Git is not installed.');
+				throw new Error('Incremental reader: Git is not installed.');
 			}
-			if (getGitBaseDir().startsWith('fatal:')) {
-				throw new Error('Incremental build: Not a git repository.');
+			const gitBaseDir = getGitBaseDir();
+			if (gitBaseDir.startsWith('fatal:')) {
+				throw new Error('Incremental reader: Not a git repository.');
 			}
+			this.gitBaseDir = normalizePath(gitBaseDir);
 		}
 
-		if (typeof options.triggers !== 'undefined') {
-			if (!Array.isArray(options.triggers) || options.triggers.some(x => (!Array.isArray(x) || x.length !== 2) && typeof x !== 'string')) {
-				throw new TypeError('Incremental build \'triggers\' type mismatch, this option expects \'([string, string] | string)[]\'.');
-			}
+		if (typeof triggers !== 'undefined' &&
+			(
+				!Array.isArray(triggers) ||
+				triggers.some(x => !Array.isArray(x) || x.length !== 2)
+			) &&
+			typeof triggers !== 'function'
+		) {
+			throw new TypeError('Incremental reader: \'triggers\' type mismatch, this option expects \'[string, string][] | (changes: string[]) => string[]\'.');
 		}
 
-		if (typeof options.triggersCwd !== 'undefined' && typeof options.triggersCwd !== 'string') {
-			throw new TypeError(`Incremental build 'cwd' type mismatch, expected 'string', got '${typeof options.triggersCwd}'.`);
+		if (typeof triggersTrackingRoot !== 'undefined' && typeof triggersTrackingRoot !== 'string') {
+			throw new TypeError(`Incremental reader: 'triggersTrackingRoot' type mismatch, expected 'string', got '${typeof triggersTrackingRoot}'.`);
 		}
 
-		this.key = options.key;
-		this.file = options.file ?? '.incremental';
-		this.strategy = options.strategy ?? 'time';
-		this.triggers = options.triggers ?? [];
-		this.triggersCwd = options.triggersCwd ?? process.cwd();
+		this.file = file;
+		this.key = key;
+		this.cwd = normalizePath(cwd);
+		this.strategy = strategy;
+		this.triggers = triggers;
+		this.triggersTrackingRoot = (triggersTrackingRoot && normalizePath(triggersTrackingRoot)) ?? this.cwd;
 	}
 
 	/**
@@ -87,103 +133,44 @@ export class IncrementalHelper {
 	filter(files: string[]): string[] {
 		const statusData = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf-8')) : {};
 
-		const addCwd = (x: string) => path.join(this.triggersCwd, x).replace(/\\/g, '/');
-
-		// eliminate duplicate trigger sources
-		// these activates part of the 'files' array with a given pattern
-		const triggerSome: Record<string, string[]> = {};
-		// these activates the entire 'files' array
-		const triggerAll = new Set<string>();
-		for (const trigger of this.triggers) {
-			if (Array.isArray(trigger)) {
-				const source = addCwd(trigger[0]);
-				if (!triggerSome[source]) {
-					triggerSome[source] = [];
-				}
-				triggerSome[source].push(addCwd(trigger[1]));
-			} else {
-				triggerAll.add(addCwd(trigger));
-			}
-		}
-
-		const micromatchOptions: micromatch.Options = {
-			nocase: true,
-			windows: true, // 'files' can have windows style paths too
-		};
-
-		const globOptions: glob.Options = {
-			absolute: true,
-			cwd: this.triggersCwd,
-			caseSensitiveMatch: false,
-		};
+		const triggersCallback = Array.isArray(this.triggers) ? triggersArrayHandler(this.triggers) : this.triggers;
 
 		if (this.strategy === 'time') { // Handle TIME strategy
 			if (statusData[this.key]) {
-				const lastBuildTime = new Date(statusData[this.key]);
+				const lastReadTime = new Date(statusData[this.key]);
 
-				// handle when a change activates all files
-				for (const pattern of triggerAll) {
-					// any file matching the trigger pattern
-					for (const file of glob.sync(pattern, globOptions)) {
-						// is modified since last run
-						if (lastBuildTime < fs.statSync(file).mtime) {
-							return files;
-						}
-					}
-				}
+				const triggered = triggersCallback?.(
+					readdir(this.triggersTrackingRoot)
+						.filter(x => lastReadTime < fs.statSync(this.triggersTrackingRoot + '/' + x).mtime)
+						.map(x => path.relative(this.cwd, this.triggersTrackingRoot + '/' + x).replace(/\\/g, '/'))
+				);
 
-				// handle when a change activates some of the files
-				const triggered = new Set<string>();
-				const patternCache = new Set<string>();
-				const mtimeCache: Record<string, Date> = {};
-				for (const [sourcePattern, targetPatterns] of Object.entries(triggerSome)) {
-					// get files that match the source pattern
-					for (const file of glob.sync(sourcePattern, globOptions)) {
-						if (!mtimeCache[file]) {
-							mtimeCache[file] = fs.statSync(file).mtime;
-						}
-						// if the file is new/modified
-						if (lastBuildTime < mtimeCache[file]) {
-							// drop patterns that we seen earlier
-							const unvisitedTargetPatterns = targetPatterns.filter(x => !patternCache.has(x));
-							// if there is atleast one not yet seen pattern
-							if (unvisitedTargetPatterns.length > 0) {
-								// filter matching files to it
-								for (const targetFile of micromatch(files, unvisitedTargetPatterns, micromatchOptions)) {
-									triggered.add(targetFile);
-								}
-								// add it to seen patterns list
-								for (const target of targetPatterns) {
-									patternCache.add(target);
-								}
-							}
-						}
-					}
+				if (triggered) {
+					return files.filter(x => lastReadTime < fs.statSync(this.cwd + '/' + x).mtime || micromatch.any(x, triggered, micromatchOptions));
+				} else {
+					return files.filter(x => lastReadTime < fs.statSync(this.cwd + '/' + x).mtime);
 				}
-				return files.filter(x => lastBuildTime < fs.statSync(x).mtime || triggered.has(x));
 			}
 		} else if (this.strategy === 'git') { // Handle GIT strategy
 			const commitHash = statusData[this.key];
 			if (commitHash) {
-				const gitBaseDir = getGitBaseDir();
-				const changes = getGitChangesSince(commitHash).map(x => `${gitBaseDir}/${x}`);
+				const gitChanges = getGitChangesSince(commitHash);
 
-				// handle when a change activates all files
-				if (micromatch.some(changes, [...triggerAll], micromatchOptions)) {
-					return files;
-				}
+				const changes = new Set(gitChanges
+					.filter(x => (this.gitBaseDir + '/' + x).startsWith(this.cwd))
+					.map(x => (this.gitBaseDir + '/' + x).substring(this.cwd.length + 1))
+				);
 
-				// handle when a change activates some of the files
-				const triggered = new Set();
-				for (const [sourcePattern, targetPatterns] of Object.entries(triggerSome)) {
-					if (micromatch.some(changes, sourcePattern, micromatchOptions)) {
-						for (const triggeredFile of micromatch(files, targetPatterns, micromatchOptions)) {
-							triggered.add(triggeredFile);
-						}
-					}
+				const triggered = triggersCallback?.(gitChanges
+					.filter(x => (this.gitBaseDir + '/' + x).startsWith(this.triggersTrackingRoot))
+					.map(x => path.relative(this.cwd, this.gitBaseDir + '/' + x).replace(/\\/g, '/'))
+				);
+
+				if (triggered) {
+					return files.filter(x => changes.has(x) || micromatch.any(x, triggered, micromatchOptions));
+				} else {
+					return files.filter(x => changes.has(x));
 				}
-				const changesSet = new Set(changes);
-				return files.filter(x => changesSet.has(x) || triggered.has(x));
 			}
 		}
 
