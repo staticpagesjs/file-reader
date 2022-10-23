@@ -3,35 +3,37 @@ import * as path from 'path';
 import glob from 'fast-glob';
 import { IncrementalHelper } from './incremental-helper.js';
 
-export type FileReaderOptions = {
-	cwd?: string;
-	pattern?: string | string[];
-	ignore?: string | string[];
-	encoding?: BufferEncoding;
-	incremental?: boolean | Omit<Partial<ConstructorParameters<typeof IncrementalHelper>[0]>, 'cwd'>;
-};
-
-/**
- * Example: `/project/pages/about/company.md`\
- * `header.cwd`: `/project`\
- * `header.path`: `pages/about/company.md`\
- * `header.dirname`: `pages/about`\
- * `header.basename`: `company`\
- * `header.extname`: `.md`\
- * `body`: `[file contents]`
- */
-export type FileReaderData = {
-	header: {
-		cwd: string;
-		path: string;
-		dirname: string;
-		basename: string;
-		extname: string;
+export namespace fileReader {
+	export type Options = {
+		cwd?: string;
+		pattern?: string | string[];
+		ignore?: string | string[];
+		encoding?: BufferEncoding;
+		incremental?: boolean | Omit<Partial<ConstructorParameters<typeof IncrementalHelper>[0]>, 'cwd'>;
 	};
-	body: string;
-};
 
-export const fileReader = ({ cwd = '.', pattern = '**', encoding = 'utf-8', incremental = false, ignore }: FileReaderOptions = {}) => ({
+	/**
+	 * Example: `/project/pages/about/company.md`\
+	 * `header.cwd`: `/project`\
+	 * `header.path`: `pages/about/company.md`\
+	 * `header.dirname`: `pages/about`\
+	 * `header.basename`: `company`\
+	 * `header.extname`: `.md`\
+	 * `body`: `[file contents]`
+	 */
+	export type Data = {
+		header: {
+			cwd: string;
+			path: string;
+			dirname: string;
+			basename: string;
+			extname: string;
+		};
+		body: string;
+	};
+}
+
+export const fileReader = ({ cwd = '.', pattern = '**', encoding = 'utf-8', incremental = false, ignore }: fileReader.Options = {}) => ({
 	[Symbol.iterator]() {
 		let files = glob.sync(pattern, {
 			cwd: cwd,
@@ -76,6 +78,6 @@ export const fileReader = ({ cwd = '.', pattern = '**', encoding = 'utf-8', incr
 			}
 		};
 	}
-} as Iterable<FileReaderData>);
+} as Iterable<fileReader.Data>);
 
 export default fileReader;
